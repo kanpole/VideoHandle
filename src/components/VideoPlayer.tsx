@@ -14,6 +14,9 @@ export default function VideoPlayer({ videoRef, src, onDurationLoad, onTimeUpdat
   const [currentTime, setCurrentTime] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
 
+  // Validate src is a safe blob or data URL (guards against javascript: URLs)
+  const safeSrc = /^(blob:|data:video\/)/.test(src) ? src : '';
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -71,7 +74,7 @@ export default function VideoPlayer({ videoRef, src, onDurationLoad, onTimeUpdat
     <div className="bg-black rounded-lg overflow-hidden">
       <video
         ref={videoRef}
-        src={src}
+        src={safeSrc}
         className="w-full"
         style={{ maxHeight: '240px', display: 'block' }}
       />
