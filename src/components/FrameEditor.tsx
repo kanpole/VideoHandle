@@ -36,7 +36,7 @@ export default function FrameEditor({ frame, onFrameUpdate }: Props) {
     setZoom(1);
     setOffset({ x: 0, y: 0 });
     currentImageData.current = null;
-  }, [frame.id]);
+  }, [frame.id, frame.dataUrl]);
 
   // Draw to canvas
   useEffect(() => {

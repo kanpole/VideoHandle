@@ -56,12 +56,15 @@ export default function Timeline({ duration, currentTime, markedTimes, onSeek, o
 
     setThumbnails(thumbs);
     setIsGenerating(false);
-  }, [duration, videoRef, isGenerating]);
+  // isGenerating intentionally omitted to prevent re-trigger loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration, videoRef]);
 
   useEffect(() => {
     if (duration > 0) {
       generateThumbnails();
     }
+  // generateThumbnails is stable per duration change; adding it causes infinite loop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration]);
 

@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+
+const TIME_TOLERANCE = 0.05;
 import { ExtractedFrame } from './types';
 import VideoUploader from './components/VideoUploader';
 import VideoPlayer from './components/VideoPlayer';
@@ -36,8 +38,8 @@ export default function App() {
 
   const handleMarkTime = (time: number) => {
     setMarkedTimes(prev => {
-      const exists = prev.some(t => Math.abs(t - time) < 0.05);
-      if (exists) return prev.filter(t => Math.abs(t - time) >= 0.05);
+      const exists = prev.some(t => Math.abs(t - time) < TIME_TOLERANCE);
+      if (exists) return prev.filter(t => Math.abs(t - time) >= TIME_TOLERANCE);
       return [...prev, time].sort((a, b) => a - b);
     });
   };
