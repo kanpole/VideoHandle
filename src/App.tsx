@@ -90,27 +90,24 @@ export default function App() {
   };
 
   const handleImagesLoad = (files: File[]) => {
-    const newFrames: ExtractedFrame[] = [];
-    let loaded = 0;
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        newFrames.push({
-          id: `img-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          time: 0,
-          dataUrl,
-          label: file.name,
-        });
-        loaded++;
-        if (loaded === files.length) {
-          setExtractedFrames(prev => [...prev, ...newFrames]);
-          if (!selectedFrame && newFrames.length > 0) {
-            setSelectedFrame(newFrames[0]);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
+    const readFile = (file: File, index: number): Promise<ExtractedFrame> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            id: `img-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+            time: 0,
+            dataUrl: e.target?.result as string,
+            label: file.name,
+          });
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+
+    Promise.all(files.map((file, i) => readFile(file, i))).then(newFrames => {
+      setExtractedFrames(prev => [...prev, ...newFrames]);
+      setSelectedFrame(sf => sf ?? (newFrames.length > 0 ? newFrames[0] : null));
     });
   };
 
