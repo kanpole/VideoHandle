@@ -37,6 +37,7 @@ export default function FrameEditor({ frame, onFrameUpdate }: Props) {
   const [tolerance, setTolerance] = useState(30);
   const [edgeSmoothing, setEdgeSmoothing] = useState(2);
   const [removeAllOccurrences, setRemoveAllOccurrences] = useState(false);
+  const [useEdgeDetection, setUseEdgeDetection] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<SelectionRect | null>(null);
   const [selectionDrag, setSelectionDrag] = useState<DragState | null>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
@@ -200,6 +201,7 @@ export default function FrameEditor({ frame, onFrameUpdate }: Props) {
       tolerance,
       edgeSmoothing,
       removeAllOccurrences,
+      useEdgeDetection,
       region: selectedRegion ?? undefined,
     });
     const newUrl = imageDataToDataUrl(result);
@@ -417,46 +419,71 @@ export default function FrameEditor({ frame, onFrameUpdate }: Props) {
             </div>
           </div>
 
-          {/* Edge Smoothing */}
+          {/* Edge Detection toggle */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Edge Smoothing</label>
-              <span className="text-xs text-blue-400 font-mono">{edgeSmoothing}px</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={10}
-              value={edgeSmoothing}
-              onChange={e => setEdgeSmoothing(Number(e.target.value))}
-              className="w-full accent-blue-500"
-            />
-            <div className="flex justify-between text-xs text-slate-500 mt-0.5">
-              <span>Sharp</span>
-              <span>Smooth</span>
-            </div>
-          </div>
-
-          {/* Remove All Occurrences toggle */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Remove Everywhere</label>
+              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Edge Detection</label>
               <button
-                onClick={() => setRemoveAllOccurrences(prev => !prev)}
-                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${removeAllOccurrences ? 'bg-blue-600' : 'bg-slate-600'}`}
-                aria-pressed={removeAllOccurrences}
+                onClick={() => setUseEdgeDetection(prev => !prev)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${useEdgeDetection ? 'bg-blue-600' : 'bg-slate-600'}`}
+                aria-pressed={useEdgeDetection}
               >
                 <span
-                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${removeAllOccurrences ? 'translate-x-4' : 'translate-x-0.5'}`}
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${useEdgeDetection ? 'translate-x-4' : 'translate-x-0.5'}`}
                 />
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              {removeAllOccurrences
-                ? 'Removes color everywhere, including inside the subject'
-                : 'Only removes color connected to the boundary (flood fill)'}
+              {useEdgeDetection
+                ? 'Flood-fill from edges; respects edge smoothing below'
+                : 'Directly removes every pixel matching the selected colors'}
             </p>
           </div>
+
+          {/* Edge Smoothing */}
+          {useEdgeDetection && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Edge Smoothing</label>
+                  <span className="text-xs text-blue-400 font-mono">{edgeSmoothing}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  value={edgeSmoothing}
+                  onChange={e => setEdgeSmoothing(Number(e.target.value))}
+                  className="w-full accent-blue-500"
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-0.5">
+                  <span>Sharp</span>
+                  <span>Smooth</span>
+                </div>
+              </div>
+
+              {/* Remove All Occurrences toggle */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Remove Everywhere</label>
+                  <button
+                    onClick={() => setRemoveAllOccurrences(prev => !prev)}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${removeAllOccurrences ? 'bg-blue-600' : 'bg-slate-600'}`}
+                    aria-pressed={removeAllOccurrences}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${removeAllOccurrences ? 'translate-x-4' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {removeAllOccurrences
+                    ? 'Removes color everywhere, including inside the subject'
+                    : 'Only removes color connected to the boundary (flood fill)'}
+                </p>
+              </div>
+            </>
+          )}
 
           {/* Actions */}
           <div className="space-y-2">
@@ -497,10 +524,11 @@ export default function FrameEditor({ frame, onFrameUpdate }: Props) {
             <p className="font-medium text-slate-300">How to use:</p>
             <p>1. In <strong>Pick</strong> mode, click the canvas to sample colors</p>
             <p>2. Optionally use <strong>Select</strong> mode to drag a region on the canvas — removal will be limited to that area</p>
-            <p>3. Toggle <strong>Remove Everywhere</strong> to also strip the color from inside the subject, not just the connected background</p>
-            <p>4. Adjust tolerance and edge smoothing</p>
-            <p>5. Click <strong>Remove Background</strong></p>
-            <p>6. Export as PNG with transparency</p>
+            <p>3. Toggle <strong>Edge Detection</strong> — when off, all matching pixels are removed directly without flood-fill</p>
+            <p>4. When edge detection is on, toggle <strong>Remove Everywhere</strong> to also strip the color from inside the subject, not just the connected background</p>
+            <p>5. Adjust tolerance and edge smoothing</p>
+            <p>6. Click <strong>Remove Background</strong></p>
+            <p>7. Export as PNG with transparency</p>
           </div>
         </div>
       </div>

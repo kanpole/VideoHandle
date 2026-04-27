@@ -4,6 +4,11 @@ export interface RemoveBackgroundOptions {
   edgeSmoothing: number;
   /** When true, removes the matching color from every pixel instead of only flood-filling from edges. */
   removeAllOccurrences?: boolean;
+  /**
+   * When false, skips flood-fill and edge smoothing entirely and directly removes every pixel
+   * that matches the selected colors. Defaults to true.
+   */
+  useEdgeDetection?: boolean;
   /** When set, restricts processing to this rectangular region (canvas pixel coordinates). */
   region?: { x: number; y: number; width: number; height: number };
 }
@@ -21,12 +26,30 @@ function isColorMatch(
 }
 
 export function removeBackground(imageData: ImageData, options: RemoveBackgroundOptions): ImageData {
-  const { colors, tolerance, edgeSmoothing, removeAllOccurrences = false, region } = options;
+  const { colors, tolerance, edgeSmoothing, removeAllOccurrences = false, useEdgeDetection = true, region } = options;
   const { width, height, data } = imageData;
 
   if (colors.length === 0) return imageData;
 
   const result = new ImageData(new Uint8ClampedArray(data), width, height);
+
+  // When edge detection is disabled, directly remove every pixel that matches
+  // the selected colors within the region — no flood-fill, no edge smoothing.
+  if (!useEdgeDetection) {
+    const rx = region ? Math.max(0, Math.floor(region.x)) : 0;
+    const ry = region ? Math.max(0, Math.floor(region.y)) : 0;
+    const rxEnd = region ? Math.min(width, Math.floor(region.x + region.width)) : width;
+    const ryEnd = region ? Math.min(height, Math.floor(region.y + region.height)) : height;
+    for (let y = ry; y < ryEnd; y++) {
+      for (let x = rx; x < rxEnd; x++) {
+        const pIdx = (y * width + x) * 4;
+        if (isColorMatch(data[pIdx], data[pIdx + 1], data[pIdx + 2], colors, tolerance)) {
+          result.data[pIdx + 3] = 0;
+        }
+      }
+    }
+    return result;
+  }
 
   // mask: 0 = unvisited, 1 = background (remove), 2 = foreground (keep)
   const mask = new Uint8Array(width * height);
