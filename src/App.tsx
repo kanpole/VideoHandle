@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 const TIME_TOLERANCE = 0.05;
 import { ExtractedFrame } from './types';
 import VideoUploader from './components/VideoUploader';
+import ImageUploader from './components/ImageUploader';
 import VideoPlayer from './components/VideoPlayer';
 import Timeline from './components/Timeline';
 import FrameGallery from './components/FrameGallery';
@@ -16,7 +17,10 @@ function formatTimeLabel(s: number): string {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
 }
 
+type AppMode = 'video' | 'image';
+
 export default function App() {
+  const [appMode, setAppMode] = useState<AppMode>('video');
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -85,6 +89,47 @@ export default function App() {
     if (selectedFrame?.id === id) setSelectedFrame(null);
   };
 
+  const handleImagesLoad = (files: File[]) => {
+    const newFrames: ExtractedFrame[] = [];
+    let loaded = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        newFrames.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          time: 0,
+          dataUrl,
+          label: file.name,
+        });
+        loaded++;
+        if (loaded === files.length) {
+          setExtractedFrames(prev => [...prev, ...newFrames]);
+          if (!selectedFrame && newFrames.length > 0) {
+            setSelectedFrame(newFrames[0]);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSwitchMode = (mode: AppMode) => {
+    setAppMode(mode);
+    setExtractedFrames([]);
+    setSelectedFrame(null);
+    if (mode === 'video') {
+      // keep video state
+    } else {
+      // switching to image mode — reset video state
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+      setVideoUrl('');
+      setVideoDuration(0);
+      setMarkedTimes([]);
+      setCurrentTime(0);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col" style={{ height: '100vh', overflow: 'hidden' }}>
       <header className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center gap-3 flex-shrink-0">
@@ -93,12 +138,46 @@ export default function App() {
         </div>
         <h1 className="text-xl font-bold text-white">VideoHandle</h1>
         <span className="text-slate-400 text-sm">Video Frame Processing Tool</span>
+        <div className="ml-auto flex items-center gap-1 bg-slate-700 rounded-lg p-1">
+          <button
+            onClick={() => handleSwitchMode('video')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              appMode === 'video'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🎬 Video
+          </button>
+          <button
+            onClick={() => handleSwitchMode('image')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              appMode === 'image'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🖼️ Image
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel */}
         <div className="w-96 flex-shrink-0 flex flex-col border-r border-slate-700 overflow-y-auto">
-          {!videoUrl ? (
+          {appMode === 'image' ? (
+            <div className="flex-1 p-4 flex flex-col gap-3">
+              <ImageUploader onImagesLoad={handleImagesLoad} />
+              {extractedFrames.length > 0 && (
+                <button
+                  onClick={() => { setExtractedFrames([]); setSelectedFrame(null); }}
+                  className="text-slate-400 hover:text-slate-200 text-xs underline text-left"
+                >
+                  ← Clear all images
+                </button>
+              )}
+            </div>
+          ) : !videoUrl ? (
             <div className="flex-1 p-4">
               <VideoUploader onVideoLoad={handleVideoLoad} />
             </div>
@@ -177,9 +256,19 @@ export default function App() {
               <div className="flex items-center justify-center h-full text-slate-500">
                 {extractedFrames.length === 0 ? (
                   <div className="text-center">
-                    <div className="text-5xl mb-4">🎬</div>
-                    <p className="text-lg font-medium text-slate-400">Upload a video to get started</p>
-                    <p className="text-sm mt-2 text-slate-500">Mark frames on the timeline, then extract them</p>
+                    {appMode === 'image' ? (
+                      <>
+                        <div className="text-5xl mb-4">🖼️</div>
+                        <p className="text-lg font-medium text-slate-400">Upload images to get started</p>
+                        <p className="text-sm mt-2 text-slate-500">Use the panel on the left to upload images, then remove their background</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-5xl mb-4">🎬</div>
+                        <p className="text-lg font-medium text-slate-400">Upload a video to get started</p>
+                        <p className="text-sm mt-2 text-slate-500">Mark frames on the timeline, then extract them</p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center">
